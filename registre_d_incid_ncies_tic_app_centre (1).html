@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestió d'Incidències TIC - CC Sant Francesc d'Assís</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js per a les estadístiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Google Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .kanban-col {
+            min-height: 500px;
+        }
+        .badge-alta { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .badge-mitja { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+        .badge-baixa { background-color: #e0e7ff; color: #3730a3; border: 1px solid #818cf8; }
+
+        .status-pendent { border-left: 5px solid #ef4444; }
+        .status-proces { border-left: 5px solid #f59e0b; }
+        .status-derivatasau { border-left: 5px solid #8b5cf6; }
+        .status-resolt { border-left: 5px solid #10b981; }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased flex flex-col min-h-screen">
+
+    <!-- Capçalera Principal -->
+    <header class="bg-indigo-700 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white text-indigo-700 p-2 rounded-lg shadow-inner font-bold text-xl">
+                    <i class="fa-solid fa-laptop-code"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-lg leading-tight">Gestió d'Incidències TIC</h1>
+                        <span id="cloud-status" class="text-[11px] bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-medium">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="hidden md:inline">Operatiu</span>
+                        </span>
+                    </div>
+                    <p class="text-xs text-indigo-200">CC Sant Francesc d'Assís - Portal de Suport i Manteniment</p>
+                </div>
+            </div>
+
+            <!-- Navegació per pestanyes -->
+            <nav class="flex space-x-1 sm:space-x-2 mt-2 sm:mt-0 text-sm font-medium items-center">
+                <button onclick="switchTab('form')" id="tab-form" class="tab-btn px-3 py-2 rounded-lg transition-all duration-150 flex items-center space-x-2 bg-indigo-800 text-white shadow">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Nova Incidència</span>
+                </button>
+                <button onclick="switchTab('kanban')" id="tab-kanban" class="tab-btn tic-only-tab hidden px-3 py-2 rounded-lg transition-all duration-150 flex items-center space-x-2 text-indigo-100 hover:bg-indigo-600">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span class="hidden sm:inline">Tauler Kanban</span>
+                </button>
+                <button onclick="switchTab('llista')" id="tab-llista" class="tab-btn tic-only-tab hidden px-3 py-2 rounded-lg transition-all duration-150 flex items-center space-x-2 text-indigo-100 hover:bg-indigo-600">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span class="hidden sm:inline">Llistat</span>
+                </button>
+                <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn tic-only-tab hidden px-3 py-2 rounded-lg transition-all duration-150 flex items-center space-x-2 text-indigo-100 hover:bg-indigo-600">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span class="hidden sm:inline">Estadístiques</span>
+                </button>
+
+                <!-- Botó d'Accés per a l'Equip TIC -->
+                <div class="pl-2 border-l border-indigo-500/50">
+                    <button id="btn-login-tic" onclick="openLoginModal()" class="bg-indigo-900 hover:bg-indigo-950 text-indigo-100 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 border border-indigo-400/30 transition">
+                        <i class="fa-solid fa-lock text-amber-400"></i>
+                        <span>Accés Equip TIC</span>
+                    </button>
+                    <button id="btn-logout-tic" onclick="logoutTIC()" class="hidden bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Sortir Equip TIC</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Toast de Notificació -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-700">
+        <i id="toast-icon" class="fa-solid fa-circle-info text-amber-400 text-xl"></i>
+        <span id="toast-message" class="text-sm font-medium">Operació realitzada amb èxit.</span>
+    </div>
+
+    <!-- Contingut Principal -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- Missatge de Restricció d'Accés per a Usuaris No Autenticats -->
+        <section id="sec-access-denied" class="tab-content hidden max-w-lg mx-auto my-12 text-center bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-user-lock"></i>
+            </div>
+            <h2 class="font-bold text-lg text-slate-800 mb-2">Accés Restringit a l'Equip TIC</h2>
+            <p class="text-xs text-slate-500 mb-6 leading-relaxed">
+                El tauler de gestió, el llistat complet d'incidències i les estadístiques estan reservats exclusivament als membres de la Comissió / Equip TIC.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <button onclick="switchTab('form')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+                    Tornar al Formulari
+                </button>
+                <button onclick="openLoginModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Iniciar Sessió TIC</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- PESTANYA 1: FORMULARI NOVA INCIDÈNCIA -->
+        <section id="sec-form" class="tab-content block max-w-3xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white p-5 border-b border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-base sm:text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-circle-plus text-indigo-400"></i> Notificar Nova Incidència TIC
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Envia la teva petició d'assistència tècnica directament a l'Equip TIC del centre.</p>
+                    </div>
+                </div>
+
+                <form onsubmit="handleFormSubmit(event)" class="p-6 space-y-5">
+                    <!-- Dades del Docent -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nom i Cognoms del Docent <span class="text-red-500">*</span></label>
+                            <input type="text" id="form-docent" required placeholder="Ex: Maria Pujol" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Correu electrònic del centre <span class="text-red-500">*</span></label>
+                            <input type="email" id="form-email" required placeholder="Ex: m.pujol@santfrancesc.cat" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Ubicació i Element -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Aula / Espai afectat <span class="text-red-500">*</span></label>
+                            <select id="form-aula" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="">-- Selecciona l'aula --</option>
+                                <option value="Aula 101 (1r ESO A)">Aula 101 (1r ESO A)</option>
+                                <option value="Aula 102 (1r ESO B)">Aula 102 (1r ESO B)</option>
+                                <option value="Aula 201 (2n ESO A)">Aula 201 (2n ESO A)</option>
+                                <option value="Aula d'Informàtica 1">Aula d'Informàtica 1</option>
+                                <option value="Aula d'Informàtica 2">Aula d'Informàtica 2</option>
+                                <option value="Laboratori de Ciències">Laboratori de Ciències</option>
+                                <option value="Saló d'Actes">Saló d'Actes</option>
+                                <option value="Sala de Professorat">Sala de Professorat</option>
+                                <option value="Biblioteca">Biblioteca</option>
+                                <option value="Altres">Altres / Especialitats</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Element / Dispositiu <span class="text-red-500">*</span></label>
+                            <select id="form-element" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="">-- Selecciona l'element --</option>
+                                <option value="Projector / Pantalla interactiva">Projector / Pantalla interactiva</option>
+                                <option value="Ordinador de taula (Professor)">Ordinador de taula (Professor)</option>
+                                <option value="Connexió Wi-Fi / Xarxa">Connexió Wi-Fi / Xarxa</option>
+                                <option value="Carro de Portàtils / Tauletes">Carro de Portàtils / Tauletes</option>
+                                <option value="Sistema de So / Altaveus">Sistema de So / Altaveus</option>
+                                <option value="Impremta / Impressora">Impremta / Impressora</option>
+                                <option value="Teclat / Ratolí / Cables">Teclat / Ratolí / Cables</option>
+                                <option value="Altres">Altres</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Codi d'equip i urgència -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Codi o etiqueta de l'equip (si en té)</label>
+                            <input type="text" id="form-codi" placeholder="Ex: PRJ-101 o PC-LAB-02" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nivell d'Urgència <span class="text-red-500">*</span></label>
+                            <select id="form-urgencia" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="Alta">🔴 Alta (Impedeix fer la classe)</option>
+                                <option value="Mitja" selected>🟡 Mitja (Dificulta la classe però hi ha alternativa)</option>
+                                <option value="Baixa">🔵 Baixa (Consulta o millora no urgent)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checklist preventiu -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs space-y-2">
+                        <div class="font-bold text-amber-900 flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check text-amber-600"></i> Comprovació prèvia d'1 minut (recomanada):
+                        </div>
+                        <ul class="list-disc list-inside text-amber-800 space-y-1">
+                            <li>El cable d'alimentació i el cable HDMI estan ben endollats?</li>
+                            <li>Has provat de reiniciar l'ordinador o el projector?</li>
+                            <li>Comprova si el commutador de xarxa o Wi-Fi està activat.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Descripció -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Descripció detallada de la incidència <span class="text-red-500">*</span></label>
+                        <textarea id="form-desc" required rows="3" placeholder="Explica breument què passa (ex: El projector s'encén però la imatge es veu lilosa o no rep senyal HDMI)." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <!-- Botó d'enviament -->
+                    <div class="pt-2 flex justify-end">
+                        <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Enviar Incidència</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- PESTANYA 2: TAULER KANBAN -->
+        <section id="sec-kanban" class="tab-content hidden">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-filter text-indigo-600"></i>
+                    <span class="font-bold text-xs text-slate-700">Filtrar tauler:</span>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <select id="kanban-filter-aula" onchange="renderKanban()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Totes">Totes les aules</option>
+                    </select>
+                    <select id="kanban-filter-urgencia" onchange="renderKanban()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Totes">Totes les urgències</option>
+                        <option value="Alta">🔴 Alta</option>
+                        <option value="Mitja">🟡 Mitja</option>
+                        <option value="Baixa">🔵 Baixa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-200/60 p-3 rounded-2xl flex flex-col kanban-col border border-slate-200">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <div class="flex items-center space-x-2 font-bold text-xs text-slate-700">
+                            <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+                            <span>Pendents</span>
+                        </div>
+                        <span id="count-pendent" class="bg-slate-300 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <div id="col-pendent" class="space-y-3 flex-grow overflow-y-auto"></div>
+                </div>
+
+                <div class="bg-slate-200/60 p-3 rounded-2xl flex flex-col kanban-col border border-slate-200">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <div class="flex items-center space-x-2 font-bold text-xs text-slate-700">
+                            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                            <span>En Procés</span>
+                        </div>
+                        <span id="count-proces" class="bg-slate-300 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <div id="col-proces" class="space-y-3 flex-grow overflow-y-auto"></div>
+                </div>
+
+                <div class="bg-slate-200/60 p-3 rounded-2xl flex flex-col kanban-col border border-slate-200">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <div class="flex items-center space-x-2 font-bold text-xs text-slate-700">
+                            <span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span>
+                            <span>Derivat a SAU</span>
+                        </div>
+                        <span id="count-escalat" class="bg-slate-300 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <div id="col-escalat" class="space-y-3 flex-grow overflow-y-auto"></div>
+                </div>
+
+                <div class="bg-slate-200/60 p-3 rounded-2xl flex flex-col kanban-col border border-slate-200">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <div class="flex items-center space-x-2 font-bold text-xs text-slate-700">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                            <span>Resoltes</span>
+                        </div>
+                        <span id="count-resolt" class="bg-slate-300 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <div id="col-resolt" class="space-y-3 flex-grow overflow-y-auto"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PESTANYA 3: LLISTAT -->
+        <section id="sec-llista" class="tab-content hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50">
+                    <div class="flex items-center space-x-2 w-full sm:w-auto">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                        <input type="text" id="search-input" onkeyup="renderLlista()" placeholder="Cercar per aula, docent o descripció..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="exportToCSV()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-csv"></i>
+                        <span>Exportar dades (CSV)</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
+                                <th class="p-3">ID / Data</th>
+                                <th class="p-3">Aula</th>
+                                <th class="p-3">Element / Codi</th>
+                                <th class="p-3">Docent</th>
+                                <th class="p-3">Urgència</th>
+                                <th class="p-3">Estat</th>
+                                <th class="p-3">Assignat</th>
+                                <th class="p-3 text-right">Accions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- PESTANYA 4: ESTADÍSTIQUES -->
+        <section id="sec-analytics" class="tab-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
+                        <i class="fa-solid fa-ticket text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-extrabold text-slate-800" id="kpi-total">0</div>
+                        <div class="text-xs text-slate-500">Total d'Incidències</div>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-red-100 text-red-600 rounded-xl">
+                        <i class="fa-solid fa-circle-exclamation text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-extrabold text-slate-800" id="kpi-pendents">0</div>
+                        <div class="text-xs text-slate-500">Pendents de Solució</div>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                        <i class="fa-solid fa-circle-check text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-extrabold text-slate-800" id="kpi-resoltes">0%</div>
+                        <div class="text-xs text-slate-500">Taxa de Resolució</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-bar text-indigo-600"></i> Incidències per Equip / Dispositiu
+                    </h3>
+                    <div class="h-64 relative">
+                        <canvas id="chart-elements"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-sm text-slate-700 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-building text-indigo-600"></i> Top Aules amb Més Incidències
+                    </h3>
+                    <div class="h-64 relative">
+                        <canvas id="chart-aules"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal de Detall i Edició d'Incidència -->
+    <div id="modal-detail" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Gestió de la Incidència <span id="modal-id">#0</span>
+                </h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+            </div>
+            
+            <div class="p-5 space-y-4 text-xs text-slate-700">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 gap-2">
+                    <div><strong>Docent:</strong> <span id="modal-docent">-</span></div>
+                    <div><strong>Correu:</strong> <span id="modal-email" class="text-indigo-600 font-mono">-</span></div>
+                    <div><strong>Aula:</strong> <span id="modal-aula">-</span></div>
+                    <div><strong>Equip:</strong> <span id="modal-element">-</span></div>
+                    <div><strong>Codi:</strong> <span id="modal-codi">-</span></div>
+                </div>
+
+                <div>
+                    <strong class="block mb-1 text-slate-900">Descripció del problema:</strong>
+                    <p id="modal-desc" class="bg-slate-100 p-2.5 rounded-lg border border-slate-200 text-slate-800 text-xs"></p>
+                </div>
+
+                <hr class="border-slate-200">
+
+                <div id="modal-tic-edit-section" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Estat de la Incidència:</label>
+                            <select id="modal-status-select" class="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500">
+                                <option value="Pendent">🔴 Pendent</option>
+                                <option value="En procés">🟡 En procés</option>
+                                <option value="Derivat a SAU">🟣 Derivat a SAU</option>
+                                <option value="Resolt">🟢 Resolt</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Tècnic / Responsable Assignat:</label>
+                            <input type="text" id="modal-assignat" placeholder="Ex: Miquel Vives (TIC)" class="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Notes Internes / Actuació Realitzada:</label>
+                        <textarea id="modal-notes" rows="3" placeholder="Ex: S'ha canviat el cable HDMI defectuós." class="w-full p-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-3 flex justify-between items-center border-t border-slate-200">
+                <button id="modal-btn-delete" onclick="deleteTicket()" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1">
+                    <i class="fa-solid fa-trash"></i> Eliminar
+                </button>
+                <div class="space-x-2 ml-auto flex items-center">
+                    <button onclick="closeModal()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium hover:bg-slate-100">Tancar</button>
+                    <button id="modal-btn-save" onclick="saveModalChanges()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Guardar Canvis</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Selecció d'Opció per Notificar per Correu -->
+    <div id="modal-email-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-indigo-100 space-y-4">
+            <div class="flex items-center space-x-3 text-indigo-600">
+                <i class="fa-solid fa-envelope-circle-check text-2xl"></i>
+                <h3 class="font-bold text-base text-slate-800">Notificar al Docent per Correu</h3>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                L'estat de la incidència s'ha desat correctament. Com vols enviar la notificació al docent?
+            </p>
+            
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
+                <div><strong>Destinatari:</strong> <span id="email-confirm-to" class="text-indigo-600 font-mono">-</span></div>
+                <div><strong>Nou Estat:</strong> <span id="email-confirm-status" class="font-bold text-slate-900">-</span></div>
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2">
+                <a id="email-confirm-btn-gmail" href="#" target="_blank" onclick="closeEmailModal()" class="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-google"></i>
+                    <span>Obrir a Gmail Web</span>
+                </a>
+
+                <button onclick="copyEmailText()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-copy"></i>
+                    <span>Copiar Text del Missatge</span>
+                </button>
+
+                <button onclick="closeEmailModal()" class="w-full py-1.5 text-slate-400 hover:text-slate-600 text-[11px] font-medium transition text-center mt-1">
+                    Ometre enviament de correu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per a l'Accés Protegit de l'Equip TIC -->
+    <div id="modal-login" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
+            <div class="text-center mb-4">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h3 class="font-bold text-base text-slate-800">Accés Equip TIC</h3>
+                <p class="text-xs text-slate-500 mt-1">Introdueix el PIN d'accés per gestionar les incidències.</p>
+            </div>
+            
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">PIN d'Accés</label>
+                    <input type="password" id="pin-input" placeholder="Clau d'accés" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p id="pin-error" class="text-red-500 text-[11px] mt-1 hidden text-center font-medium">PIN incorrecte (predeterminat: 1234).</p>
+                </div>
+                <div class="flex space-x-2 pt-2">
+                    <button type="button" onclick="closeLoginModal()" class="w-1/2 py-2 border border-slate-300 rounded-xl text-xs font-medium hover:bg-slate-50 transition">Cancel·lar</button>
+                    <button type="submit" class="w-1/2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow transition">Accedir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal d'Èxit post-enviament de nova incidència -->
+    <div id="modal-success" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl text-center space-y-4 border border-emerald-100">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-800">Incidència Enviada amb Èxit!</h3>
+                <p class="text-xs text-slate-500 mt-1">L'equip TIC ha rebut la teva notificació.</p>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-left space-y-2">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <span class="font-semibold text-slate-600">Número de Tiquet:</span>
+                    <span id="success-ticket-id" class="font-extrabold text-indigo-600 font-mono text-sm">#0000</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Docent:</span>
+                    <span id="success-docent" class="font-medium text-slate-800">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Ubicació:</span>
+                    <span id="success-aula" class="font-medium text-slate-800">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Element:</span>
+                    <span id="success-element" class="font-medium text-slate-800">-</span>
+                </div>
+            </div>
+
+            <button onclick="closeSuccessModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-check"></i>
+                <span>D'acord, entesos</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Script Principal JavaScript -->
+    <script>
+        const TIC_PIN = "1234";
+        let isTICAuthenticated = false;
+        let currentTab = 'form';
+        let currentEditingId = null;
+        let currentEmailText = "";
+
+        let chartElementsObj = null;
+        let chartAulesObj = null;
+
+        const initialSampleData = [
+            { id: 1001, docent: "Joan Garcia", email: "j.garcia@santfrancesc.cat", aula: "Aula 101 (1r ESO A)", element: "Projector / Pantalla interactiva", codiEquip: "PRJ-101", urgencia: "Alta", estat: "Pendent", assignat: "Sense assignar", data: "14/10/2026, 09:15", descripcio: "El projector s'apaga sol al cap de 5 minuts d'encendre'l.", notes: "" },
+            { id: 1002, docent: "Marta Soler", email: "m.soler@santfrancesc.cat", aula: "Aula d'Informàtica 1", element: "Connexió Wi-Fi / Xarxa", codiEquip: "NET-INF1", urgencia: "Mitja", estat: "En procés", assignat: "Miquel Vives (TIC)", data: "14/10/2026, 10:30", descripcio: "Tres ordinadors de la filera 2 no tenen connexió a la xarxa del centre.", notes: "Comprovant el switch de la sala." }
+        ];
+
+        let tickets = JSON.parse(localStorage.getItem('tic_incidencies_data')) || [...initialSampleData];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            refreshUI();
+        });
+
+        function refreshUI() {
+            populateFilterOptions();
+            updateKPIs();
+            updateCharts();
+            if (currentTab === 'kanban') renderKanban();
+            if (currentTab === 'llista') renderLlista();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const ticTabs = ['kanban', 'llista', 'analytics'];
+            if (ticTabs.includes(tab) && !isTICAuthenticated) {
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+                document.getElementById('sec-access-denied').classList.remove('hidden');
+                return;
+            }
+
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-indigo-800', 'text-white', 'shadow');
+                el.classList.add('text-indigo-100');
+            });
+
+            const activeTabBtn = document.getElementById(`tab-${tab}`);
+            if (activeTabBtn) {
+                activeTabBtn.classList.add('bg-indigo-800', 'text-white', 'shadow');
+                activeTabBtn.classList.remove('text-indigo-100');
+            }
+
+            const sec = document.getElementById(`sec-${tab}`);
+            if (sec) sec.classList.remove('hidden');
+
+            refreshUI();
+        }
+
+        function openLoginModal() {
+            document.getElementById('pin-input').value = '';
+            document.getElementById('pin-error').classList.add('hidden');
+            document.getElementById('modal-login').classList.remove('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('modal-login').classList.add('hidden');
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const pin = document.getElementById('pin-input').value;
+            if (pin === TIC_PIN) {
+                isTICAuthenticated = true;
+                closeLoginModal();
+                document.querySelectorAll('.tic-only-tab').forEach(el => el.classList.remove('hidden'));
+                document.getElementById('btn-login-tic').classList.add('hidden');
+                document.getElementById('btn-logout-tic').classList.remove('hidden');
+                showToast("Sessió TIC iniciada correctament.");
+                switchTab('kanban');
+            } else {
+                document.getElementById('pin-error').classList.remove('hidden');
+            }
+        }
+
+        function logoutTIC() {
+            isTICAuthenticated = false;
+            document.querySelectorAll('.tic-only-tab').forEach(el => el.classList.add('hidden'));
+            document.getElementById('btn-login-tic').classList.remove('hidden');
+            document.getElementById('btn-logout-tic').classList.add('hidden');
+            showToast("Sessió tancada.");
+            switchTab('form');
+        }
+
+        function handleFormSubmit(e) {
+            if (e) e.preventDefault();
+
+            const docent = document.getElementById('form-docent').value.trim();
+            const email = document.getElementById('form-email').value.trim();
+            const aula = document.getElementById('form-aula').value;
+            const element = document.getElementById('form-element').value;
+            const codiEquip = document.getElementById('form-codi').value.trim() || 'S/N';
+            const urgencia = document.getElementById('form-urgencia').value;
+            const descripcio = document.getElementById('form-desc').value.trim();
+
+            const nextId = tickets.length > 0 ? Math.max(...tickets.map(t => t.id || 0)) + 1 : 1001;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('ca-ES') + ', ' + now.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
+
+            const newTicket = {
+                id: nextId,
+                docent,
+                email,
+                aula,
+                element,
+                codiEquip,
+                urgencia,
+                estat: 'Pendent',
+                assignat: 'Sense assignar',
+                data: dateStr,
+                descripcio,
+                notes: ''
+            };
+
+            tickets.unshift(newTicket);
+            localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
+            refreshUI();
+
+            document.getElementById('success-ticket-id').innerText = '#' + newTicket.id;
+            document.getElementById('success-docent').innerText = newTicket.docent;
+            document.getElementById('success-aula').innerText = newTicket.aula;
+            document.getElementById('success-element').innerText = newTicket.element;
+
+            document.getElementById('form-docent').value = '';
+            document.getElementById('form-email').value = '';
+            document.getElementById('form-aula').value = '';
+            document.getElementById('form-element').value = '';
+            document.getElementById('form-codi').value = '';
+            document.getElementById('form-desc').value = '';
+
+            document.getElementById('modal-success').classList.remove('hidden');
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('modal-success').classList.add('hidden');
+        }
+
+        function openModal(id) {
+            currentEditingId = id;
+            const ticket = tickets.find(t => t.id === id);
+            if (!ticket) return;
+
+            document.getElementById('modal-id').innerText = '#' + ticket.id;
+            document.getElementById('modal-docent').innerText = ticket.docent;
+            document.getElementById('modal-email').innerText = ticket.email;
+            document.getElementById('modal-aula').innerText = ticket.aula;
+            document.getElementById('modal-element').innerText = ticket.element;
+            document.getElementById('modal-codi').innerText = ticket.codiEquip;
+            document.getElementById('modal-desc').innerText = ticket.descripcio;
+
+            document.getElementById('modal-status-select').value = ticket.estat;
+            document.getElementById('modal-assignat').value = ticket.assignat || '';
+            document.getElementById('modal-notes').value = ticket.notes || '';
+
+            document.getElementById('modal-detail').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-detail').classList.add('hidden');
+            currentEditingId = null;
+        }
+
+        function saveModalChanges() {
+            if (!currentEditingId) return;
+
+            const ticket = tickets.find(t => t.id === currentEditingId);
+            if (ticket) {
+                const oldStatus = ticket.estat;
+                const newStatus = document.getElementById('modal-status-select').value;
+                const newAssignat = document.getElementById('modal-assignat').value.trim() || 'Sense assignar';
+                const newNotes = document.getElementById('modal-notes').value.trim();
+
+                ticket.estat = newStatus;
+                ticket.assignat = newAssignat;
+                ticket.notes = newNotes;
+
+                localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
+
+                closeModal();
+                showToast("Canvis desats correctament!");
+                refreshUI();
+
+                // Notificar en qualsevol canvi d'estat
+                if (oldStatus !== newStatus) {
+                    promptEmailChoice(ticket);
+                }
+            }
+        }
+
+        function promptEmailChoice(ticket) {
+            if (!ticket || !ticket.email || ticket.email.indexOf('@') === -1) {
+                showToast("⚠️ La incidència no té un correu vàlid associat.");
+                return;
+            }
+
+            const subject = `[Incidència #${ticket.id}] Actualització d'estat: ${ticket.estat}`;
+            const bodyText = `Hola ${ticket.docent},\r\n\r\nL'estat de la teva incidència #${ticket.id} (${ticket.element} - ${ticket.aula}) s'ha actualitzat.\r\n\r\n📌 Nou estat: ${ticket.estat}\r\n👤 Responsable assignat: ${ticket.assignat}\r\n📝 Observacions / Actuació: ${ticket.notes || 'Sense observacions addicionals.'}\r\n\r\nAtentament,\r\nEquip TIC - CC Sant Francesc d'Assís`;
+
+            currentEmailText = `Per a: ${ticket.email}\nAssumpte: ${subject}\n\n${bodyText.replace(/\r\n/g, '\n')}`;
+
+            const gmailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(ticket.email) + "&su=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(bodyText);
+
+            document.getElementById('email-confirm-to').innerText = ticket.email;
+            document.getElementById('email-confirm-status').innerText = ticket.estat;
+
+            document.getElementById('email-confirm-btn-gmail').href = gmailUrl;
+
+            document.getElementById('modal-email-confirm').classList.remove('hidden');
+        }
+
+        function closeEmailModal() {
+            document.getElementById('modal-email-confirm').classList.add('hidden');
+        }
+
+        function copyEmailText() {
+            if (navigator.clipboard && currentEmailText) {
+                navigator.clipboard.writeText(currentEmailText).then(() => {
+                    showToast("📋 Text del correu copiat al portapapers!");
+                    closeEmailModal();
+                });
+            } else {
+                showToast("⚠️ No s'ha pogut copiar el text.");
+            }
+        }
+
+        function deleteTicket() {
+            if (!currentEditingId) return;
+            const ticketIndex = tickets.findIndex(t => t.id === currentEditingId);
+            if (ticketIndex !== -1) {
+                tickets.splice(ticketIndex, 1);
+                localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
+                closeModal();
+                showToast("Incidència eliminada.");
+                refreshUI();
+            }
+        }
+
+        function populateFilterOptions() {
+            const selectAula = document.getElementById('kanban-filter-aula');
+            if (!selectAula) return;
+            const currentSelected = selectAula.value;
+
+            const aules = Array.from(new Set(tickets.map(t => t.aula))).sort();
+            selectAula.innerHTML = '<option value="Totes">Totes les aules</option>';
+            aules.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a;
+                opt.innerText = a;
+                selectAula.appendChild(opt);
+            });
+            selectAula.value = currentSelected || 'Totes';
+        }
+
+        function renderKanban() {
+            const cols = {
+                'Pendent': document.getElementById('col-pendent'),
+                'En procés': document.getElementById('col-proces'),
+                'Derivat a SAU': document.getElementById('col-escalat'),
+                'Resolt': document.getElementById('col-resolt')
+            };
+
+            Object.values(cols).forEach(c => { if (c) c.innerHTML = ''; });
+
+            const counts = { 'Pendent': 0, 'En procés': 0, 'Derivat a SAU': 0, 'Resolt': 0 };
+
+            const filterAula = document.getElementById('kanban-filter-aula')?.value || 'Totes';
+            const filterUrgencia = document.getElementById('kanban-filter-urgencia')?.value || 'Totes';
+
+            const filtered = tickets.filter(t => {
+                const matchAula = (filterAula === 'Totes' || t.aula === filterAula);
+                const matchUrgencia = (filterUrgencia === 'Totes' || t.urgencia === filterUrgencia);
+                return matchAula && matchUrgencia;
+            });
+
+            filtered.forEach(t => {
+                const colKey = cols[t.estat] ? t.estat : 'Pendent';
+                counts[colKey]++;
+
+                let badgeClass = 'badge-baixa';
+                if (t.urgencia === 'Alta') badgeClass = 'badge-alta';
+                if (t.urgencia === 'Mitja') badgeClass = 'badge-mitja';
+
+                let statusBorderClass = 'status-pendent';
+                if (t.estat === 'En procés') statusBorderClass = 'status-proces';
+                if (t.estat === 'Derivat a SAU') statusBorderClass = 'status-derivatasau';
+                if (t.estat === 'Resolt') statusBorderClass = 'status-resolt';
+
+                const card = document.createElement('div');
+                card.className = `bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition cursor-pointer space-y-2 ${statusBorderClass}`;
+                card.onclick = () => openModal(t.id);
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="font-mono font-bold text-[11px] text-slate-400">#${t.id}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${badgeClass}">${t.urgencia}</span>
+                    </div>
+                    <div class="font-bold text-xs text-slate-800 line-clamp-1">${t.aula}</div>
+                    <div class="text-[11px] text-slate-600 line-clamp-2">${t.descripcio}</div>
+                    <div class="pt-2 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-500">
+                        <span><i class="fa-regular fa-user mr-1"></i>${t.docent}</span>
+                        <span><i class="fa-solid fa-screwdriver-wrench mr-1"></i>${t.assignat || 'Sense assignar'}</span>
+                    </div>
+                `;
+
+                if (cols[colKey]) cols[colKey].appendChild(card);
+            });
+
+            document.getElementById('count-pendent').innerText = counts['Pendent'];
+            document.getElementById('count-proces').innerText = counts['En procés'];
+            document.getElementById('count-escalat').innerText = counts['Derivat a SAU'];
+            document.getElementById('count-resolt').innerText = counts['Resolt'];
+        }
+
+        function renderLlista() {
+            const tbody = document.getElementById('table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const query = (document.getElementById('search-input')?.value || '').toLowerCase();
+
+            const filtered = tickets.filter(t => {
+                return t.aula.toLowerCase().includes(query) ||
+                       t.docent.toLowerCase().includes(query) ||
+                       t.element.toLowerCase().includes(query) ||
+                       t.descripcio.toLowerCase().includes(query) ||
+                       ('#' + t.id).includes(query);
+            });
+
+            filtered.forEach(t => {
+                let badgeClass = 'badge-baixa';
+                if (t.urgencia === 'Alta') badgeClass = 'badge-alta';
+                if (t.urgencia === 'Mitja') badgeClass = 'badge-mitja';
+
+                let statusBadge = 'bg-red-100 text-red-800 border-red-200';
+                if (t.estat === 'En procés') statusBadge = 'bg-amber-100 text-amber-800 border-amber-200';
+                if (t.estat === 'Derivat a SAU') statusBadge = 'bg-purple-100 text-purple-800 border-purple-200';
+                if (t.estat === 'Resolt') statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-indigo-600">
+                        #${t.id}
+                        <div class="text-[10px] text-slate-400 font-normal">${t.data}</div>
+                    </td>
+                    <td class="p-3 font-semibold text-slate-800">${t.aula}</td>
+                    <td class="p-3 text-slate-600">
+                        ${t.element}
+                        <div class="text-[10px] text-slate-400 font-mono">Codi: ${t.codiEquip}</div>
+                    </td>
+                    <td class="p-3 text-slate-700">${t.docent}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${badgeClass}">${t.urgencia}</span></td>
+                    <td class="p-3"><span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusBadge}">${t.estat}</span></td>
+                    <td class="p-3 text-slate-600">${t.assignat || 'Sense assignar'}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="openModal(${t.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold transition text-[11px]">
+                            Gestionar
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,ID,Data,Docent,Aula,Element,Urgencia,Estat,Assignat\n";
+            tickets.forEach(t => {
+                csvContent += `${t.id},"${t.data}","${t.docent}","${t.aula}","${t.element}","${t.urgencia}","${t.estat}","${t.assignat || ''}"\n`;
+            });
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", `incidencies_tic_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(function() {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        function initCharts() {
+            const ctxElements = document.getElementById('chart-elements');
+            const ctxAules = document.getElementById('chart-aules');
+
+            if (ctxElements) {
+                chartElementsObj = new Chart(ctxElements, {
+                    type: 'doughnut',
+                    data: { labels: [], datasets: [{ data: [], backgroundColor: ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            if (ctxAules) {
+                chartAulesObj = new Chart(ctxAules, {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Incidències', data: [], backgroundColor: '#6366f1' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                });
+            }
+        }
+
+        function updateKPIs() {
+            const total = tickets.length;
+            const pendents = tickets.filter(t => t.estat !== 'Resolt').length;
+            const resoltes = tickets.filter(t => t.estat === 'Resolt').length;
+            const taxa = total > 0 ? Math.round((resoltes / total) * 100) : 0;
+
+            if (document.getElementById('kpi-total')) document.getElementById('kpi-total').innerText = total;
+            if (document.getElementById('kpi-pendents')) document.getElementById('kpi-pendents').innerText = pendents;
+            if (document.getElementById('kpi-resoltes')) document.getElementById('kpi-resoltes').innerText = taxa + '%';
+        }
+
+        function updateCharts() {
+            if (!chartElementsObj || !chartAulesObj) return;
+
+            const elementCounts = {};
+            tickets.forEach(t => elementCounts[t.element] = (elementCounts[t.element] || 0) + 1);
+            chartElementsObj.data.labels = Object.keys(elementCounts);
+            chartElementsObj.data.datasets[0].data = Object.values(elementCounts);
+            chartElementsObj.update();
+
+            const aulaCounts = {};
+            tickets.forEach(t => {
+                const shortAula = t.aula.split('(')[0].trim();
+                aulaCounts[shortAula] = (aulaCounts[shortAula] || 0) + 1;
+            });
+            const sortedAules = Object.entries(aulaCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            chartAulesObj.data.labels = sortedAules.map(a => a[0]);
+            chartAulesObj.data.datasets[0].data = sortedAules.map(a => a[1]);
+            chartAulesObj.update();
+        }
+    </script>
+</body>
+</html>
