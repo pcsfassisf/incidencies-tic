@@ -57,8 +57,8 @@
                     <div class="flex items-center gap-2">
                         <h1 class="font-bold text-lg leading-tight">Gestió d'Incidències TIC</h1>
                         <span id="cloud-status" class="text-[11px] bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-medium">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span class="hidden md:inline">Operatiu</span>
+                            <span id="sync-indicator" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span id="sync-text" class="hidden md:inline">Sincronitzat amb Google Sheets</span>
                         </span>
                     </div>
                     <p class="text-xs text-indigo-200">CC Sant Francesc d'Assís - Portal de Suport i Manteniment</p>
@@ -67,6 +67,9 @@
 
             <!-- Navegació per pestanyes -->
             <nav class="flex space-x-1 sm:space-x-2 mt-2 sm:mt-0 text-sm font-medium items-center">
+                <button onclick="fetchCloudTickets()" title="Actualitzar dades" class="px-2.5 py-2 rounded-lg bg-indigo-800/60 text-white hover:bg-indigo-600 transition flex items-center gap-1 text-xs">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
                 <button onclick="switchTab('form')" id="tab-form" class="tab-btn px-3 py-2 rounded-lg transition-all duration-150 flex items-center space-x-2 bg-indigo-800 text-white shadow">
                     <i class="fa-solid fa-plus-circle"></i>
                     <span>Nova Incidència</span>
@@ -553,6 +556,11 @@
     <script>
         const TIC_PIN = "1234";
         const ADMIN_EMAIL = "sfassisf@sfassisf.com";
+        
+        // URL de Google Apps Script per sincronitzar amb Google Sheets
+        // Substitueix aquest valor per la URL del teu desplegament
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/a/macros/sfassisf.com/s/AKfycbwQJGOXgIDnBFgPl-mCQbEbf4bIJGB3h2R89lIRJgOOGimN25ykGi2JeLZ6FO-_9JDK/exec";
+
         let isTICAuthenticated = false;
         let currentTab = 'form';
         let currentEditingId = null;
@@ -570,8 +578,67 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initCharts();
+            fetchCloudTickets();
             refreshUI();
         });
+
+        // Petició per carregar les incidències directament des de Google Sheets
+        function fetchCloudTickets() {
+            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("LA_TEVA_URL")) {
+                updateSyncStatus(false, "Modificació local (no vinculat a Google Sheets)");
+                return;
+            }
+
+            updateSyncStatus(true, "Carregant dades de Google Sheets...");
+
+            fetch(GOOGLE_SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        tickets = data;
+                        localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
+                        updateSyncStatus(true, "Sincronitzat amb Google Sheets");
+                        refreshUI();
+                    } else {
+                        updateSyncStatus(true, "Full de càlcul buit. Usant dades locals.");
+                    }
+                })
+                .catch(err => {
+                    console.warn("Error en carregar de Google Sheets:", err);
+                    updateSyncStatus(false, "Mode offline (desat localment)");
+                });
+        }
+
+        function syncActionToCloud(actionType, payload) {
+            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("LA_TEVA_URL")) return;
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: actionType,
+                    ...payload
+                })
+            }).then(() => {
+                showToast("☁️ Sincronitzat amb Google Sheets!");
+            }).catch(err => {
+                console.error("Error sincronitzant amb el núvol:", err);
+            });
+        }
+
+        function updateSyncStatus(isSynced, text) {
+            const ind = document.getElementById('sync-indicator');
+            const txt = document.getElementById('sync-text');
+            if (!ind || !txt) return;
+
+            txt.innerText = text;
+            if (isSynced) {
+                ind.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+            } else {
+                ind.className = "w-2 h-2 rounded-full bg-amber-400";
+            }
+        }
 
         function refreshUI() {
             populateFilterOptions();
@@ -675,6 +742,10 @@
 
             tickets.unshift(newTicket);
             localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
+            
+            // Sincronitzar la creació amb Google Sheets
+            syncActionToCloud("create", { ticket: newTicket });
+
             refreshUI();
 
             document.getElementById('success-ticket-id').innerText = '#' + newTicket.id;
@@ -709,7 +780,6 @@
 
         function closeSuccessModal() {
             document.getElementById('modal-success').classList.add('hidden');
-            // Si hi ha un correu pendent de confirmació, es mostra
             if (currentEmailText) {
                 document.getElementById('modal-email-confirm').classList.remove('hidden');
             }
@@ -756,11 +826,13 @@
 
                 localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
 
+                // Sincronitzar la modificació amb Google Sheets
+                syncActionToCloud("update", { ticket });
+
                 closeModal();
                 showToast("Canvis desats correctament!");
                 refreshUI();
 
-                // Notificar en qualsevol canvi d'estat
                 if (oldStatus !== newStatus) {
                     promptEmailChoice(ticket);
                 }
@@ -806,10 +878,15 @@
 
         function deleteTicket() {
             if (!currentEditingId) return;
-            const ticketIndex = tickets.findIndex(t => t.id === currentEditingId);
+            const idToDelete = currentEditingId;
+            const ticketIndex = tickets.findIndex(t => t.id === idToDelete);
             if (ticketIndex !== -1) {
                 tickets.splice(ticketIndex, 1);
                 localStorage.setItem('tic_incidencies_data', JSON.stringify(tickets));
+                
+                // Sincronitzar eliminació a Google Sheets
+                syncActionToCloud("delete", { id: idToDelete });
+
                 closeModal();
                 showToast("Incidència eliminada.");
                 refreshUI();
