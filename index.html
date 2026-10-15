@@ -458,15 +458,15 @@
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-indigo-100 space-y-4">
             <div class="flex items-center space-x-3 text-indigo-600">
                 <i class="fa-solid fa-envelope-circle-check text-2xl"></i>
-                <h3 class="font-bold text-base text-slate-800">Notificar al Docent per Correu</h3>
+                <h3 class="font-bold text-base text-slate-800">Notificar per Correu</h3>
             </div>
             <p class="text-xs text-slate-600 leading-relaxed">
-                L'estat de la incidència s'ha desat correctament. Com vols enviar la notificació al docent?
+                La incidència s'ha registrat / actualitzat. Com vols enviar la notificació per correu?
             </p>
             
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
                 <div><strong>Destinatari:</strong> <span id="email-confirm-to" class="text-indigo-600 font-mono">-</span></div>
-                <div><strong>Nou Estat:</strong> <span id="email-confirm-status" class="font-bold text-slate-900">-</span></div>
+                <div><strong>Estat / Avís:</strong> <span id="email-confirm-status" class="font-bold text-slate-900">-</span></div>
             </div>
 
             <div class="flex flex-col gap-2 pt-2">
@@ -552,6 +552,7 @@
     <!-- Script Principal JavaScript -->
     <script>
         const TIC_PIN = "1234";
+        const ADMIN_EMAIL = "sfassisf@sfassisf.com";
         let isTICAuthenticated = false;
         let currentTab = 'form';
         let currentEditingId = null;
@@ -689,10 +690,29 @@
             document.getElementById('form-desc').value = '';
 
             document.getElementById('modal-success').classList.remove('hidden');
+
+            // Obrir la modal de correu per enviar la nova incidència a sfassisf@sfassisf.com
+            promptNewIncidentEmail(newTicket);
+        }
+
+        function promptNewIncidentEmail(ticket) {
+            const subject = `[NOVA INCIDÈNCIA #${ticket.id}] ${ticket.aula} - ${ticket.element}`;
+            const bodyText = `S'ha registrat una nova incidència TIC:\r\n\r\n📌 ID: #${ticket.id}\r\n👤 Docent: ${ticket.docent} (${ticket.email})\r\n🏫 Ubicació: ${ticket.aula}\r\n💻 Element: ${ticket.element} (Codi: ${ticket.codiEquip})\r\n⚠️ Urgència: ${ticket.urgencia}\r\n📝 Descripció: ${ticket.descripcio}\r\n📅 Data: ${ticket.data}`;
+
+            currentEmailText = `Per a: ${ADMIN_EMAIL}\nAssumpte: ${subject}\n\n${bodyText.replace(/\r\n/g, '\n')}`;
+            const gmailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(ADMIN_EMAIL) + "&su=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(bodyText);
+
+            document.getElementById('email-confirm-to').innerText = ADMIN_EMAIL;
+            document.getElementById('email-confirm-status').innerText = "Nova incidència creada";
+            document.getElementById('email-confirm-btn-gmail').href = gmailUrl;
         }
 
         function closeSuccessModal() {
             document.getElementById('modal-success').classList.add('hidden');
+            // Si hi ha un correu pendent de confirmació, es mostra
+            if (currentEmailText) {
+                document.getElementById('modal-email-confirm').classList.remove('hidden');
+            }
         }
 
         function openModal(id) {
@@ -770,6 +790,7 @@
 
         function closeEmailModal() {
             document.getElementById('modal-email-confirm').classList.add('hidden');
+            currentEmailText = "";
         }
 
         function copyEmailText() {
