@@ -147,11 +147,11 @@
                     <!-- Dades del Docent -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nom i Cognoms del Docent <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nom i cognoms del docent <span class="text-red-500">*</span></label>
                             <input type="text" id="form-docent" required placeholder="Ex: Mariah Carey" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Correu electrònic del centre <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Correu electrònic del docent <span class="text-red-500">*</span></label>
                             <input type="email" id="form-email" required placeholder="Ex: mariahcarey@.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         </div>
                     </div>
@@ -217,7 +217,7 @@
                     <!-- Codi d'equip i urgència -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Codi o etiqueta de l'equip (si en té)</label>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Codi o s/n de l'equip (si en té)</label>
                             <input type="text" id="form-codi" placeholder="Ex: PRJ-101 o PC-LAB-02" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         </div>
 
@@ -234,11 +234,12 @@
                     <!-- Checklist preventiu -->
                     <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs space-y-2">
                         <div class="font-bold text-amber-900 flex items-center gap-1.5">
-                            <i class="fa-solid fa-list-check text-amber-600"></i> Comprovació prèvia d'1 minut (recomanada):
+                            <i class="fa-solid fa-list-check text-amber-600"></i> Fes aquestes comprovacions abans d'informar de l'incidència:
                         </div>
                         <ul class="list-disc list-inside text-amber-800 space-y-1">
-                            <li>El cable d'alimentació i el cable HDMI estan ben endollats?</li>
-                            <li>Has provat de reiniciar l'ordinador o el projector?</li>
+                            <li>Has provat de reiniciar el dispositiu?</li>
+                            <li>El cable d'alimentació està ben endollat?</li>
+                            <li>Has comprovat que els cables estiguin ben connectats?</li>
                             <li>Comprova si el commutador de xarxa o Wi-Fi està activat.</li>
                         </ul>
                     </div>
@@ -246,14 +247,14 @@
                     <!-- Descripció -->
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Descripció detallada de la incidència <span class="text-red-500">*</span></label>
-                        <textarea id="form-desc" required rows="3" placeholder="Explica breument què passa (ex: El projector s'encén però la imatge es veu lilosa o no rep senyal HDMI)." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                        <textarea id="form-desc" required rows="3" placeholder="Explica breument què passa (ex: El projector s'encén però la imatge es veu lilosa o no rep senyal HDMI). Intenta donar prou detalls." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
                     </div>
 
                     <!-- Botó d'enviament -->
                     <div class="pt-2 flex justify-end">
                         <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-paper-plane"></i>
-                            <span>Enviar Incidència</span>
+                            <span>Enviar incidència</span>
                         </button>
                     </div>
                 </form>
